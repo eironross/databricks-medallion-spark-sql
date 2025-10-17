@@ -3,7 +3,7 @@
         - Creating a stream orders header table from bronze table
 */
 
-CREATE OR REFRESH STREAMING TABLE order_headers
+CREATE OR REFRESH MATERIALIZED VIEW order_headers
 (
     CONSTRAINT valid_sales_id EXPECT(sales_order_id IS NOT NULL) ON VIOLATION FAIL UPDATE
     ,CONSTRAINT valid_date EXPECT(transaction_date IS NOT NULL)
@@ -46,4 +46,4 @@ SELECT
         ELSE 0
     END AS is_cancelled
 FROM 
-    STREAM(db_bike.01_bronze.bronze_sales_order)
+    db_bike.01_bronze.bronze_sales_order

@@ -103,21 +103,21 @@ def dim_products():
 def fact_sales():
     dim_business_partners = dlt.read("dim_partners").alias("bp")
     dim_products = dlt.read("dim_products").alias("p")
-    silver_order_details = dlt.read_stream("db_bike.02_silver.order_details").alias("o")
+    silver_order_details = dlt.read("db_bike.02_silver.order_details").alias("o")
 
     fact_df = (
             silver_order_details
                 .join(dim_products, F.col("o.product_id") == F.col("p.product_id"), how="inner")
-                .join(dim_business_partners, F.expr("bp.partner_id = p.partner_id"), how="left")
+                .join(dim_business_partners, F.col("bp.partner_id") == F.col("p.partner_id"), how="left")
                 .withColumn("sales_sk", F.xxhash64(F.col("o.sales_order_id"), F.col("o.sales_order_item")).cast("String"))
                 .withColumn("sales_amount", F.col("o.net_amount") * F.col("o.quantity"))
-                .withColumn("date", F.to_date(F.col("o.delivery_date"), "MM/dd/yyyy"))
+                .withColumn("date", F.to_date(F.col("o.delivery_date").cast("String"), "MM/dd/yyyy").alias("date"))
                 .select(
-                    "sales_sk"
-                    ,"partner_sk"
-                    ,"product_sk"
-                    ,"date"
-                    ,"sales_amount"  
+                    F.col("sales_sk")
+                    ,F.col("bp.partner_sk")
+                    ,F.col("p.product_sk")
+                    ,F.col("date")
+                    ,F.col("sales_amount") 
                 )
     )
     return fact_df
@@ -129,18 +129,18 @@ def fact_sales():
 )
 def fact_rcm():
         dim_employees = dlt.read("dim_employees").alias("e")
-        order_headers = dlt.read_stream("db_bike.02_silver.order_headers").alias("oh")
+        order_headers = dlt.read("db_bike.02_silver.order_headers").alias("oh")
 
         fact_df = (
             order_headers
                 .join(dim_employees, F.col("oh.created_by") == F.col("e.employee_id"), how="inner")
-                .withColumn("date", F.to_date(F.col("oh.transaction_date"), "MM/dd/yyyy"))
+                .withColumn("date", F.to_date(F.col("oh.transaction_date"), "MM/dd/yyyy").alias("date"))
                 .withColumn("productivity_sk", F.xxhash64(F.col("e.employee_id"), F.col("oh.transaction_date")).cast("String"))
-                .groupBy("productivity_sk", "employee_sk", "date")
+                .groupBy("employee_sk", "employee_id", "date")
                 .agg(F.count(F.col("oh.sales_order_id")).alias("total_orders"))
                 .select(
-                    "productivity_sk"
-                    ,"employee_sk"
+                    "employee_sk"
+                    ,"employee_id"
                     ,"date"
                     ,"total_orders"
                 )
