@@ -111,7 +111,7 @@ def fact_sales():
                 .join(dim_business_partners, F.col("bp.partner_id") == F.col("p.partner_id"), how="left")
                 .withColumn("sales_sk", F.xxhash64(F.col("o.sales_order_id"), F.col("o.sales_order_item")).cast("String"))
                 .withColumn("sales_amount", F.col("o.net_amount") * F.col("o.quantity"))
-                .withColumn("date", F.to_date(F.col("o.delivery_date").cast("String"), "MM/dd/yyyy").alias("date"))
+                .withColumn("date", F.to_date(F.col("o.delivery_date").cast("String"), "yyyyMMdd"))
                 .select(
                     F.col("sales_sk")
                     ,F.col("bp.partner_sk")
@@ -120,6 +120,7 @@ def fact_sales():
                     ,F.col("sales_amount") 
                 )
     )
+    
     return fact_df
 
 @dlt.table(
@@ -134,7 +135,7 @@ def fact_rcm():
         fact_df = (
             order_headers
                 .join(dim_employees, F.col("oh.created_by") == F.col("e.employee_id"), how="inner")
-                .withColumn("date", F.to_date(F.col("oh.transaction_date"), "MM/dd/yyyy").alias("date"))
+                .withColumn("date", F.to_date(F.col("oh.transaction_date").cast("String"), "yyyyMMdd"))
                 .withColumn("productivity_sk", F.xxhash64(F.col("e.employee_id"), F.col("oh.transaction_date")).cast("String"))
                 .groupBy("employee_sk", "employee_id", "date")
                 .agg(F.count(F.col("oh.sales_order_id")).alias("total_orders"))
